@@ -1,0 +1,19 @@
+{
+  "name": "projectai-v9t",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ProjectAI static app with serverless DeepSeek + DOCX export",
+  "dependencies": {
+    "@xmldom/xmldom": "^0.8.11",
+    "docx": "^9.5.1",
+    "jszip": "^3.10.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "diag:docx": "node scripts/require-api-docx.js",
+    "postinstall": "echo \"Dependencies installed.\"",
+    "test:docx": "node scripts/docx-smoke.js"
+  }
+}

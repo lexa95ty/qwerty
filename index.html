@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ProjectAI — генератор проекта</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="min-h-screen bg-mesh text-white">
+  <header class="max-w-6xl mx-auto px-5 pt-8">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-emerald-400"></div>
+        <div>
+          <div class="font-semibold leading-tight text-lg">ProjectAI</div>
+          <div class="text-xs text-white/60">Генерация учебного проекта пошагово</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <a href="./prompts.html" class="text-sm text-white/70 hover:text-white transition">Панель управления</a>
+        <button id="resetBtn" class="text-sm text-white/70 hover:text-white transition">Сброс</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-5 py-10">
+    <div class="grid lg:grid-cols-12 gap-6 items-start">
+      <section class="lg:col-span-7">
+        <div class="glass shadow-soft rounded-3xl p-7 sm:p-8">
+          <h1 class="text-3xl sm:text-4xl font-semibold tracking-tight">
+            Проект по теме — в один клик
+          </h1>
+
+          <p class="mt-3 text-white/70 leading-relaxed">
+            Введите тему. Генератор выполнит этапы в заданном порядке
+            (настраивается в панели управления).
+          </p>
+
+          <div class="mt-7">
+            <label class="text-sm text-white/70">Тема проекта</label>
+            <input id="topicInput" type="text"
+              class="mt-2 w-full rounded-2xl bg-white/5 border border-white/10 px-4 py-3.5
+                     focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20
+                     placeholder:text-white/35 text-white"
+              placeholder="Например: Влияние здорового образа жизни на подростков" />
+          </div>
+
+          <div class="mt-4 flex gap-3">
+            <button id="startBtn"
+              class="flex-1 rounded-2xl py-3.5 font-medium
+                     bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-emerald-400">
+              Сгенерировать
+            </button>
+            <button id="stopBtn" disabled
+              class="rounded-2xl py-3.5 px-5 font-medium bg-white/5 border border-white/10">
+              Стоп
+            </button>
+          </div>
+
+          <div class="mt-6 flex gap-3">
+            <button id="downloadBtn" disabled
+              class="flex-1 rounded-2xl py-3.5 font-medium
+                     bg-emerald-500/15 border border-emerald-400/20">
+              Скачать DOCX
+            </button>
+            <button id="togglePreviewBtn"
+              class="rounded-2xl py-3.5 px-5 font-medium bg-white/5 border border-white/10">
+              Превью
+            </button>
+          </div>
+
+          <div id="previewWrap" class="hidden mt-5 space-y-4">
+            <div class="rounded-2xl bg-white/5 border border-white/10 p-4">
+              <div id="preview" class="text-sm text-white/80"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="lg:col-span-5">
+        <div class="glass rounded-3xl p-6">
+          <div class="flex items-start justify-between gap-3">
+            <div id="statusText" class="font-medium">Ожидание темы</div>
+            <div id="badge"
+              class="text-xs px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/70">
+              Готово
+            </div>
+          </div>
+          <div class="mt-5 h-2 rounded-full bg-white/10">
+            <div id="progressBar" class="h-full w-0 bg-white/70"></div>
+          </div>
+          <div class="mt-2 flex items-center justify-between text-xs text-white/55">
+            <div id="progressLeft">0%</div>
+            <div id="progressRight">0/0</div>
+          </div>
+          <div id="steps" class="mt-5 space-y-2"></div>
+
+          <div class="mt-6 rounded-2xl bg-white/5 border border-white/10 p-4">
+            <div class="text-xs text-white/60">Summary</div>
+            <div id="summaryBox" class="mt-2 text-sm text-white/80 leading-relaxed whitespace-pre-wrap">—</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </main>
+
+  <script src="./prompt-config.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

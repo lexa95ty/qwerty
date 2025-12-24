@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ProjectAI — панель управления</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body class="min-h-screen bg-mesh text-white">
+  <header class="max-w-6xl mx-auto px-5 pt-8">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-xl bg-gradient-to-br from-indigo-500 via-fuchsia-500 to-emerald-400"></div>
+        <div>
+          <div class="font-semibold leading-tight text-lg">Панель управления</div>
+          <div class="text-xs text-white/60">Пресеты • Этапы • Промпты • Переменные</div>
+        </div>
+      </div>
+      <a href="./index.html" class="text-sm text-white/70 hover:text-white transition">Назад</a>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-5 py-10">
+    <div class="grid lg:grid-cols-12 gap-6 items-start">
+      <section class="lg:col-span-4 space-y-6">
+        <div class="glass rounded-3xl p-6">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm text-white/60">Пресет</div>
+              <div class="text-xs text-white/45 mt-1">Выберите профиль настроек</div>
+            </div>
+            <span id="activeBadge" class="text-xs px-2.5 py-1 rounded-full bg-white/5 border border-white/10 text-white/70">активный</span>
+          </div>
+
+          <select id="presetSelect"
+            class="mt-3 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-3
+                   focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20">
+          </select>
+
+          <div class="mt-4">
+            <label class="text-xs text-white/60">Название</label>
+            <input id="presetName"
+              class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                     focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm"/>
+          </div>
+          <div class="mt-3">
+            <label class="text-xs text-white/60">Описание</label>
+            <textarea id="presetDesc" rows="3"
+              class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                     focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm"></textarea>
+          </div>
+
+          <div class="mt-4 grid grid-cols-2 gap-3">
+            <button id="makeActiveBtn"
+              class="rounded-2xl py-3 bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm">
+              Сделать активным
+            </button>
+            <button id="deletePresetBtn"
+              class="rounded-2xl py-3 bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm">
+              Удалить
+            </button>
+          </div>
+
+          <details class="mt-5">
+            <summary class="cursor-pointer text-sm text-white/70 hover:text-white transition">
+              + Создать новый пресет
+            </summary>
+            <div class="mt-3 space-y-3">
+              <div>
+                <label class="text-xs text-white/60">Название нового пресета</label>
+                <input id="createName"
+                  class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                         focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm"
+                  placeholder="Например: История 10 класс"/>
+              </div>
+              <div>
+                <label class="text-xs text-white/60">Основа</label>
+                <select id="createBase"
+                  class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                         focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm">
+                  <option value="school">Школьный</option>
+                  <option value="college">Колледж</option>
+                  <option value="coursework">Курсовая</option>
+                  <option value="current">Текущий пресет</option>
+                </select>
+              </div>
+              <button id="createBtn"
+                class="w-full rounded-2xl py-3 bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-emerald-400 hover:opacity-95 transition text-sm font-medium">
+                Создать
+              </button>
+            </div>
+          </details>
+        </div>
+
+        <div class="glass rounded-3xl p-6">
+          <div class="text-sm text-white/60">Глобальные настройки AI</div>
+
+          <div class="mt-4 space-y-3">
+            <label class="flex items-center gap-3">
+              <input id="autoAddContext" type="checkbox" class="accent-indigo-400"/>
+              <span class="text-sm">Автоматически добавлять контекст в каждый запрос</span>
+            </label>
+
+            <div class="pl-7 space-y-2">
+              <label class="flex items-center gap-3">
+                <input id="autoAddSummary" type="checkbox" class="accent-indigo-400"/>
+                <span class="text-sm">Добавлять <code class="text-white/80">{{generated_summary}}</code></span>
+              </label>
+              <label class="flex items-center gap-3">
+                <input id="autoAddTail" type="checkbox" class="accent-indigo-400"/>
+                <span class="text-sm">Добавлять <code class="text-white/80">{{generated_text_no_title_tail}}</code></span>
+              </label>
+
+              <div class="mt-2">
+                <label class="text-xs text-white/60">Tail chars</label>
+                <input id="tailChars" type="number" min="2000" step="500"
+                  class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                         focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm"/>
+              </div>
+
+              <label class="flex items-center gap-3 mt-2">
+                <input id="updateSummaryAfterStage" type="checkbox" class="accent-indigo-400"/>
+                <span class="text-sm">Обновлять <code class="text-white/80">{{generated_summary}}</code> после каждого этапа</span>
+              </label>
+              <label class="flex items-center gap-3">
+                <input id="updateSummaryAfterSection" type="checkbox" class="accent-indigo-400"/>
+                <span class="text-sm">Обновлять <code class="text-white/80">{{generated_summary}}</code> после каждого параграфа</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="glass rounded-3xl p-6">
+          <div class="text-sm text-white/60">Импорт/экспорт</div>
+          <div class="mt-3 grid grid-cols-2 gap-3">
+            <button id="exportBtn"
+              class="rounded-2xl py-3 bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm">
+              Экспорт
+            </button>
+            <button id="importBtn"
+              class="rounded-2xl py-3 bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm">
+              Импорт
+            </button>
+          </div>
+          <input id="importFile" type="file" accept="application/json" class="hidden"/>
+          <div class="mt-3 text-xs text-white/45">
+            Экспорт сохраняет все пресеты и настройки в JSON. Импорт заменяет текущие настройки.
+          </div>
+        </div>
+
+        <div class="glass rounded-3xl p-6">
+          <div class="text-sm text-white/60">Конструктор переменных</div>
+          <div class="mt-2 flex gap-2">
+            <input id="varSearch" placeholder="Поиск переменной…"
+              class="flex-1 rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5 text-sm
+                     focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20"/>
+            <button id="copyHintBtn"
+              class="rounded-2xl px-4 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm">
+              Подсказка
+            </button>
+          </div>
+
+          <div id="varButtons" class="mt-4 flex flex-wrap gap-2"></div>
+
+          <div class="mt-5 text-sm text-white/60">Пользовательские переменные</div>
+          <div class="mt-2 flex gap-2">
+            <input id="newVarKey" placeholder="ключ (латиница, _)"
+              class="flex-1 rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5 text-sm
+                     focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20"/>
+            <button id="addVarBtn"
+              class="rounded-2xl px-4 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm">
+              Добавить
+            </button>
+          </div>
+          <div id="userVars" class="mt-3 space-y-2"></div>
+        </div>
+      </section>
+
+      <section class="lg:col-span-8">
+        <div class="glass rounded-3xl p-6">
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <div class="text-sm text-white/60">Редактор</div>
+              <div id="contextTitle" class="mt-1 text-xl font-semibold">—</div>
+              <div id="contextSubtitle" class="mt-1 text-sm text-white/60">—</div>
+            </div>
+            <div class="flex gap-2">
+              <button id="saveBtn"
+                class="rounded-2xl px-4 py-2.5 font-medium bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-emerald-400 hover:opacity-95 transition">
+                Сохранить
+              </button>
+              <button id="testBtn"
+                class="rounded-2xl px-4 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 transition">
+                Тест AI
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-6 flex gap-2 flex-wrap">
+            <button id="tabStages" class="rounded-2xl px-4 py-2.5 border tab-active text-sm">Этапы</button>
+            <button id="tabPrompts" class="rounded-2xl px-4 py-2.5 border tab-idle text-sm hover:bg-white/10 transition">Промпты</button>
+          </div>
+
+          <div id="panelStages" class="mt-6">
+            <div class="rounded-2xl bg-white/5 border border-white/10 p-4">
+              <div class="text-sm text-white/70">Структура проекта</div>
+              <div class="grid sm:grid-cols-2 gap-4 mt-3">
+                <div>
+                  <label class="text-xs text-white/60">Количество глав</label>
+                  <input id="chaptersCount" type="number" min="1" max="10" step="1"
+                    class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                           focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm"/>
+                </div>
+                <div>
+                  <label class="text-xs text-white/60">Параграфов в главе</label>
+                  <input id="sectionsPerChapter" type="number" min="1" max="12" step="1"
+                    class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                           focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm"/>
+                </div>
+              </div>
+
+              <div class="mt-4 flex flex-col sm:flex-row gap-3">
+                <button id="syncChaptersBtn"
+                  class="rounded-2xl py-3 px-4 bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm">
+                  Синхронизировать этапы глав
+                </button>
+                <div class="text-xs text-white/45 sm:self-center">
+                  Создаст этап «Глава i» для каждой главы (по количеству глав).
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-5 flex items-center justify-between">
+              <div>
+                <div class="text-sm text-white/70">Этапы генерации</div>
+                <div class="text-xs text-white/45 mt-1">Включайте/выключайте, меняйте порядок, добавляйте свои этапы.</div>
+              </div>
+              <button id="addStageBtn"
+                class="rounded-2xl px-4 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm">
+                + Добавить этап
+              </button>
+            </div>
+
+            <div id="stagesList" class="mt-4 space-y-2"></div>
+
+            <div id="addStagePanel" class="hidden mt-4 rounded-2xl bg-white/5 border border-white/10 p-4">
+              <div class="text-sm text-white/70">Новый этап</div>
+              <div class="grid sm:grid-cols-2 gap-4 mt-3">
+                <div>
+                  <label class="text-xs text-white/60">Тип</label>
+                  <select id="newStageType"
+                    class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                           focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm">
+                    <option value="plan">План</option>
+                    <option value="write_chapter">Глава (параграфы)</option>
+                    <option value="intro">Введение</option>
+                    <option value="conclusion">Заключение</option>
+                    <option value="bibliography">Источники</option>
+                    <option value="appendix">Приложение</option>
+                    <option value="summary">Summary (generated_summary)</option>
+                    <option value="prompt">Пользовательский промпт</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="text-xs text-white/60">Название этапа</label>
+                  <input id="newStageLabel"
+                    class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                           focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm"
+                    placeholder="Например: Проверка качества"/>
+                </div>
+                <div id="newStageChapterWrap" class="hidden">
+                  <label class="text-xs text-white/60">Номер главы</label>
+                  <input id="newStageChapter" type="number" min="1" step="1"
+                    class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                           focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm"/>
+                </div>
+                <div id="newStagePromptWrap" class="hidden">
+                  <label class="text-xs text-white/60">Промпт</label>
+                  <select id="newStagePrompt"
+                    class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                           focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm">
+                  </select>
+                </div>
+              </div>
+
+              <div class="mt-4 flex gap-3">
+                <button id="confirmAddStageBtn"
+                  class="rounded-2xl px-4 py-2.5 bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-emerald-400 hover:opacity-95 transition text-sm font-medium">
+                  Добавить
+                </button>
+                <button id="cancelAddStageBtn"
+                  class="rounded-2xl px-4 py-2.5 bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm">
+                  Отмена
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div id="panelPrompts" class="hidden mt-6">
+            <div class="rounded-2xl bg-white/5 border border-white/10 p-4">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <div class="text-sm text-white/70">Список промптов</div>
+                  <div class="text-xs text-white/45 mt-1">Можно создавать новые promptId, дублировать, удалять, переименовывать.</div>
+                </div>
+              </div>
+
+              <select id="promptSelect"
+                class="mt-3 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-3
+                       focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20">
+              </select>
+
+              <div class="mt-4 grid sm:grid-cols-3 gap-3">
+                <button id="duplicatePromptBtn"
+                  class="rounded-2xl py-3 bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm">
+                  Дублировать
+                </button>
+                <button id="renamePromptBtn"
+                  class="rounded-2xl py-3 bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm">
+                  Переименовать
+                </button>
+                <button id="deletePromptBtn"
+                  class="rounded-2xl py-3 bg-white/5 border border-white/10 hover:bg-white/10 transition text-sm">
+                  Удалить
+                </button>
+              </div>
+
+              <details class="mt-5">
+                <summary class="cursor-pointer text-sm text-white/70 hover:text-white transition">
+                  + Создать новый промпт
+                </summary>
+                <div class="mt-3 space-y-3">
+                  <div class="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <label class="text-xs text-white/60">promptId (латиница/_)</label>
+                      <input id="newPromptId"
+                        class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                               focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm"
+                        placeholder="например: section_long"/>
+                    </div>
+                    <div>
+                      <label class="text-xs text-white/60">Название</label>
+                      <input id="newPromptTitle"
+                        class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                               focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm"
+                        placeholder="например: Параграф (подробнее)"/>
+                    </div>
+                  </div>
+                  <div>
+                    <label class="text-xs text-white/60">Основа</label>
+                    <select id="newPromptBase"
+                      class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                             focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm">
+                    </select>
+                  </div>
+                  <button id="createPromptBtn"
+                    class="w-full rounded-2xl py-3 bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-emerald-400 hover:opacity-95 transition text-sm font-medium">
+                    Создать промпт
+                  </button>
+                </div>
+              </details>
+            </div>
+
+            <div class="mt-5 grid sm:grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs text-white/60">model</label>
+                <input id="model" class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                                        focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm"/>
+              </div>
+              <div>
+                <label class="text-xs text-white/60">mode</label>
+                <select id="mode" class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                                        focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm">
+                  <option value="text">text</option>
+                  <option value="json">json</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs text-white/60">temperature</label>
+                <input id="temperature" type="number" min="0" max="2" step="0.1"
+                       class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                              focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm"/>
+              </div>
+              <div>
+                <label class="text-xs text-white/60">max_tokens</label>
+                <input id="maxTokens" type="number" min="50" step="50"
+                       class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                              focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm"/>
+              </div>
+            </div>
+
+            <div class="mt-5">
+              <label class="text-xs text-white/60">system</label>
+              <textarea id="system" rows="6"
+                class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                       focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm"></textarea>
+            </div>
+
+            <div class="mt-4">
+              <label class="text-xs text-white/60">user</label>
+              <textarea id="user" rows="10"
+                class="mt-1 w-full rounded-2xl bg-white/5 border border-white/10 px-3 py-2.5
+                       focus:outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-500/20 text-sm"></textarea>
+            </div>
+
+            <div class="mt-5 rounded-2xl bg-white/5 border border-white/10 p-4">
+              <div class="text-xs text-white/60 mb-2">Результат теста</div>
+              <pre id="testOut" class="text-xs text-white/75 whitespace-pre-wrap leading-relaxed">—</pre>
+            </div>
+          </div>
+
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="./prompt-config.js"></script>
+  <script src="./prompts.js"></script>
+</body>
+</html>

@@ -1,0 +1,1435 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ProjectAI — Генератор инструкций оформления DOCX</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Если у вас есть styles.css из ProjectAI — подключится и будет красиво -->
+  <link rel="stylesheet" href="./styles.css" />
+
+  <style>
+    /* Fallback, если styles.css отсутствует */
+    body:not(.bg-mesh) {
+      background: linear-gradient(180deg, #0b1220 0%, #0a1020 100%);
+      color: rgba(255,255,255,.92);
+    }
+    .glass {
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.10);
+      backdrop-filter: blur(14px);
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    .chip { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.10); }
+    .hint { color: rgba(255,255,255,.55); font-size: 12px; }
+    .label { color: rgba(255,255,255,.70); font-size: 12px; }
+    .input {
+      width: 100%;
+      border-radius: 14px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.10);
+      padding: 10px 12px;
+      outline: none;
+    }
+    .input:focus { border-color: rgba(99,102,241,.65); box-shadow: 0 0 0 6px rgba(99,102,241,.14); }
+    .btn {
+      border-radius: 16px;
+      padding: 10px 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.06);
+      transition: .15s;
+    }
+    .btn:hover { background: rgba(255,255,255,.10); }
+    .btn-primary {
+      border: 0;
+      background: linear-gradient(90deg, rgba(99,102,241,.95), rgba(236,72,153,.95), rgba(16,185,129,.95));
+      color: rgba(255,255,255,.95);
+    }
+    .btn-danger {
+      border: 1px solid rgba(239,68,68,.35);
+      background: rgba(239,68,68,.10);
+      color: rgba(254,226,226,.95);
+    }
+    .divider { border-top: 1px solid rgba(255,255,255,.10); }
+    .navlink { color: rgba(255,255,255,.70); }
+    .navlink:hover { color: rgba(255,255,255,.92); }
+    .section-title { font-weight: 600; font-size: 18px; }
+    .sub-title { font-weight: 600; font-size: 14px; color: rgba(255,255,255,.82); }
+  </style>
+</head>
+
+<body class="min-h-screen bg-mesh">
+  <header class="max-w-7xl mx-auto px-5 pt-8">
+    <div class="flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="h-10 w-10 rounded-xl" style="background:linear-gradient(135deg, rgba(99,102,241,.95), rgba(236,72,153,.95), rgba(16,185,129,.95));"></div>
+        <div>
+          <div class="font-semibold leading-tight text-lg">Генератор инструкций оформления DOCX</div>
+          <div class="text-xs text-white/60">ProjectAI • Экспорт JSON “стилей документа”</div>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 flex-wrap">
+        <a href="./index.html" class="btn">← Генератор</a>
+        <a href="./prompts.html" class="btn">Панель управления</a>
+        <button id="resetBtn" class="btn btn-danger">Сброс</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-5 py-8">
+    <div class="grid lg:grid-cols-12 gap-6 items-start">
+      <!-- Left nav -->
+      <aside class="lg:col-span-3">
+        <div class="glass rounded-3xl p-5">
+          <div class="text-sm text-white/70 font-medium">Навигация</div>
+          <div class="hint mt-1">Настройте слева/справа, затем скачайте JSON.</div>
+
+          <div class="mt-4 space-y-2 text-sm">
+            <a class="navlink block" href="#meta">1) Метаданные профиля</a>
+            <a class="navlink block" href="#page">2) Страница (поля/размер)</a>
+            <a class="navlink block" href="#base">3) База (шрифт/абзац)</a>
+            <a class="navlink block" href="#headings">4) Заголовки (H1–H4)</a>
+            <a class="navlink block" href="#toc">5) Содержание (TOC)</a>
+            <a class="navlink block" href="#numbering">6) Списки/нумерация</a>
+            <a class="navlink block" href="#tables">7) Таблицы</a>
+            <a class="navlink block" href="#captions">8) Подписи (рис/табл)</a>
+            <a class="navlink block" href="#headers">9) Колонтитулы/страницы</a>
+            <a class="navlink block" href="#bibliography">10) Литература</a>
+            <a class="navlink block" href="#advanced">11) Advanced (Raw/совм.)</a>
+          </div>
+
+          <div class="divider my-5"></div>
+
+          <div class="text-sm text-white/70 font-medium">Шаблоны</div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button class="btn" data-preset="school">Школьный</button>
+            <button class="btn" data-preset="college">Колледж</button>
+            <button class="btn" data-preset="coursework">Курсовая</button>
+          </div>
+
+          <div class="divider my-5"></div>
+
+          <div class="text-sm text-white/70 font-medium">Экспорт / импорт</div>
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <button id="downloadBtn" class="btn btn-primary">Скачать JSON</button>
+            <button id="copyBtn" class="btn">Копировать JSON</button>
+          </div>
+          <div class="mt-2 grid grid-cols-2 gap-2">
+            <button id="loadBtn" class="btn">Загрузить JSON</button>
+            <button id="saveLocalBtn" class="btn">Сохранить локально</button>
+          </div>
+          <input id="fileInput" type="file" accept="application/json" class="hidden"/>
+          <div class="hint mt-3">
+            “Сохранить локально” сохраняет профиль в localStorage (чтобы не потерять при обновлении страницы).
+          </div>
+        </div>
+
+        <div class="glass rounded-3xl p-5 mt-6">
+          <div class="text-sm text-white/70 font-medium">JSON предпросмотр</div>
+          <div class="hint mt-1">Это и будет файл инструкций.</div>
+          <pre id="jsonPreview" class="mono text-xs mt-3 whitespace-pre-wrap text-white/80 max-h-[55vh] overflow-auto bg-white/5 border border-white/10 rounded-2xl p-3">—</pre>
+        </div>
+      </aside>
+
+      <!-- Main form -->
+      <section class="lg:col-span-6">
+        <div class="glass rounded-3xl p-6">
+          <div class="flex items-start justify-between gap-4">
+            <div>
+              <div class="section-title">Профиль оформления DOCX</div>
+              <div class="hint mt-1">
+                Этот файл позже будет загружаться в панель управления, а генератор DOCX будет применять его параметры.
+              </div>
+              <div class="hint mt-1">
+                В Word настроек очень много; здесь — максимально широкая практическая конфигурация + Advanced-поле для расширений.
+              </div>
+            </div>
+          </div>
+
+          <!-- META -->
+          <div id="meta" class="mt-6">
+            <div class="sub-title">1) Метаданные</div>
+            <div class="grid sm:grid-cols-2 gap-4 mt-3">
+              <div>
+                <div class="label">Название профиля</div>
+                <input class="input" data-path="meta.name" placeholder="Например: ГОСТ-школа (2025)"/>
+              </div>
+              <div>
+                <div class="label">Автор/компания</div>
+                <input class="input" data-path="meta.author" placeholder="Например: ProjectAI"/>
+              </div>
+              <div class="sm:col-span-2">
+                <div class="label">Описание</div>
+                <textarea class="input" rows="2" data-path="meta.description" placeholder="Коротко: для школьного проекта, Times 14, поля 3/1.5/2/2 и т.п."></textarea>
+              </div>
+              <div class="sm:col-span-2">
+                <div class="label">Примечания (необязательно)</div>
+                <textarea class="input" rows="2" data-path="meta.notes" placeholder="Например: требования конкретной школы/преподавателя"></textarea>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider my-6"></div>
+
+          <!-- PAGE -->
+          <div id="page">
+            <div class="sub-title">2) Страница</div>
+            <div class="grid sm:grid-cols-2 gap-4 mt-3">
+              <div>
+                <div class="label">Размер страницы</div>
+                <select class="input" data-path="page.size">
+                  <option value="A4">A4</option>
+                  <option value="Letter">Letter</option>
+                </select>
+                <div class="hint mt-1">Для РФ обычно A4.</div>
+              </div>
+              <div>
+                <div class="label">Ориентация</div>
+                <select class="input" data-path="page.orientation">
+                  <option value="portrait">Книжная</option>
+                  <option value="landscape">Альбомная</option>
+                </select>
+              </div>
+
+              <div class="sm:col-span-2">
+                <div class="label">Поля (см)</div>
+                <div class="grid grid-cols-4 gap-3 mt-2">
+                  <div>
+                    <div class="hint">Верх</div>
+                    <input class="input" type="number" step="0.1" data-path="page.marginsCm.top"/>
+                  </div>
+                  <div>
+                    <div class="hint">Право</div>
+                    <input class="input" type="number" step="0.1" data-path="page.marginsCm.right"/>
+                  </div>
+                  <div>
+                    <div class="hint">Низ</div>
+                    <input class="input" type="number" step="0.1" data-path="page.marginsCm.bottom"/>
+                  </div>
+                  <div>
+                    <div class="hint">Лево</div>
+                    <input class="input" type="number" step="0.1" data-path="page.marginsCm.left"/>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div class="label">Переплёт (gutter), см</div>
+                <input class="input" type="number" step="0.1" data-path="page.gutterCm"/>
+                <div class="hint mt-1">Чаще 0.0–1.0, если требуют.</div>
+              </div>
+              <div>
+                <div class="label">Зеркальные поля</div>
+                <label class="flex items-center gap-3 mt-2">
+                  <input type="checkbox" class="accent-indigo-400" data-path="page.mirrorMargins"/>
+                  <span class="text-sm text-white/80">Включить</span>
+                </label>
+                <div class="hint mt-1">Для двусторонней печати.</div>
+              </div>
+
+              <div>
+                <div class="label">Расстояние до верхнего колонтитула, см</div>
+                <input class="input" type="number" step="0.1" data-path="page.headerDistanceCm"/>
+              </div>
+              <div>
+                <div class="label">Расстояние до нижнего колонтитула, см</div>
+                <input class="input" type="number" step="0.1" data-path="page.footerDistanceCm"/>
+              </div>
+
+              <div class="sm:col-span-2">
+                <div class="label">Колонки (многоколонный текст)</div>
+                <div class="grid grid-cols-2 gap-3 mt-2">
+                  <div>
+                    <div class="hint">Количество</div>
+                    <input class="input" type="number" min="1" max="4" step="1" data-path="page.columns.count"/>
+                  </div>
+                  <div>
+                    <div class="hint">Расстояние, см</div>
+                    <input class="input" type="number" step="0.1" data-path="page.columns.spacingCm"/>
+                  </div>
+                </div>
+                <div class="hint mt-2">Для проектов почти всегда 1 колонка.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider my-6"></div>
+
+          <!-- BASE -->
+          <div id="base">
+            <div class="sub-title">3) База (шрифт и абзац)</div>
+
+            <div class="mt-3 grid sm:grid-cols-2 gap-4">
+              <div>
+                <div class="label">Шрифт</div>
+                <input class="input" data-path="base.font.name" placeholder="Times New Roman"/>
+              </div>
+              <div>
+                <div class="label">Размер (pt)</div>
+                <input class="input" type="number" step="1" data-path="base.font.sizePt"/>
+              </div>
+              <div>
+                <div class="label">Цвет текста</div>
+                <div class="flex items-center gap-3 mt-2">
+                  <input class="h-10 w-14 rounded-xl bg-transparent border border-white/10" type="color" data-path="base.font.color"/>
+                  <input class="input mono" data-path="base.font.color" placeholder="#000000"/>
+                </div>
+              </div>
+              <div>
+                <div class="label">Язык</div>
+                <select class="input" data-path="base.font.lang">
+                  <option value="ru-RU">ru-RU</option>
+                  <option value="en-US">en-US</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="divider my-5"></div>
+
+            <div class="grid sm:grid-cols-2 gap-4">
+              <div>
+                <div class="label">Выравнивание абзаца</div>
+                <select class="input" data-path="base.paragraph.alignment">
+                  <option value="justify">По ширине (justify)</option>
+                  <option value="left">По левому краю</option>
+                  <option value="center">По центру</option>
+                  <option value="right">По правому краю</option>
+                </select>
+              </div>
+              <div>
+                <div class="label">Межстрочный интервал</div>
+                <select class="input" data-path="base.paragraph.lineSpacing">
+                  <option value="1.0">1.0</option>
+                  <option value="1.15">1.15</option>
+                  <option value="1.5">1.5</option>
+                  <option value="2.0">2.0</option>
+                  <option value="custom">Custom (см. ниже)</option>
+                </select>
+              </div>
+
+              <div>
+                <div class="label">Custom line (если выбран Custom)</div>
+                <input class="input" type="number" step="0.05" data-path="base.paragraph.customLine"/>
+                <div class="hint mt-1">Напр. 1.35</div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <div class="label">Before (pt)</div>
+                  <input class="input" type="number" step="1" data-path="base.paragraph.spacingBeforePt"/>
+                </div>
+                <div>
+                  <div class="label">After (pt)</div>
+                  <input class="input" type="number" step="1" data-path="base.paragraph.spacingAfterPt"/>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <div class="label">Первая строка (см)</div>
+                  <input class="input" type="number" step="0.1" data-path="base.paragraph.firstLineIndentCm"/>
+                </div>
+                <div>
+                  <div class="label">Висячий (hanging), см</div>
+                  <input class="input" type="number" step="0.1" data-path="base.paragraph.hangingIndentCm"/>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <div class="label">Отступ слева (см)</div>
+                  <input class="input" type="number" step="0.1" data-path="base.paragraph.leftIndentCm"/>
+                </div>
+                <div>
+                  <div class="label">Отступ справа (см)</div>
+                  <input class="input" type="number" step="0.1" data-path="base.paragraph.rightIndentCm"/>
+                </div>
+              </div>
+
+              <div class="sm:col-span-2">
+                <div class="label">Параметры разбиения строк (Word-like)</div>
+                <div class="mt-2 grid sm:grid-cols-3 gap-3">
+                  <label class="flex items-center gap-3">
+                    <input type="checkbox" class="accent-indigo-400" data-path="base.paragraph.widowControl"/>
+                    <span class="text-sm text-white/80">Widow/Orphan</span>
+                  </label>
+                  <label class="flex items-center gap-3">
+                    <input type="checkbox" class="accent-indigo-400" data-path="base.paragraph.keepTogether"/>
+                    <span class="text-sm text-white/80">Keep together</span>
+                  </label>
+                  <label class="flex items-center gap-3">
+                    <input type="checkbox" class="accent-indigo-400" data-path="base.paragraph.keepWithNext"/>
+                    <span class="text-sm text-white/80">Keep with next</span>
+                  </label>
+                </div>
+                <div class="hint mt-2">Часть из этого применим в DOCX как “best effort”.</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider my-6"></div>
+
+          <!-- HEADINGS -->
+          <div id="headings">
+            <div class="sub-title">4) Заголовки (H1–H4)</div>
+            <div class="hint mt-1">
+              H1: Введение/Глава/Заключение/Литература • H2: параграфы 1.1 • H3/H4: опционально
+            </div>
+
+            <div class="mt-4 space-y-6">
+              <!-- H1 -->
+              <div class="rounded-2xl bg-white/5 border border-white/10 p-4">
+                <div class="font-medium text-white/85">H1 (главы/разделы верхнего уровня)</div>
+                <div class="grid sm:grid-cols-2 gap-4 mt-3">
+                  <div>
+                    <div class="label">Размер (pt)</div>
+                    <input class="input" type="number" step="1" data-path="headings.h1.font.sizePt"/>
+                  </div>
+                  <div>
+                    <div class="label">Выравнивание</div>
+                    <select class="input" data-path="headings.h1.paragraph.alignment">
+                      <option value="center">По центру</option>
+                      <option value="left">Слева</option>
+                      <option value="justify">По ширине</option>
+                      <option value="right">Справа</option>
+                    </select>
+                  </div>
+
+                  <div class="grid grid-cols-3 gap-3 sm:col-span-2">
+                    <label class="flex items-center gap-3"><input type="checkbox" class="accent-indigo-400" data-path="headings.h1.font.bold"/><span class="text-sm">Жирный</span></label>
+                    <label class="flex items-center gap-3"><input type="checkbox" class="accent-indigo-400" data-path="headings.h1.font.italic"/><span class="text-sm">Курсив</span></label>
+                    <label class="flex items-center gap-3"><input type="checkbox" class="accent-indigo-400" data-path="headings.h1.font.underline"/><span class="text-sm">Подчёрк.</span></label>
+                    <label class="flex items-center gap-3"><input type="checkbox" class="accent-indigo-400" data-path="headings.h1.font.allCaps"/><span class="text-sm">UPPERCASE</span></label>
+                    <label class="flex items-center gap-3"><input type="checkbox" class="accent-indigo-400" data-path="headings.h1.paragraph.pageBreakBefore"/><span class="text-sm">С новой стр.</span></label>
+                    <label class="flex items-center gap-3"><input type="checkbox" class="accent-indigo-400" data-path="headings.h1.paragraph.keepWithNext"/><span class="text-sm">Keep next</span></label>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <div class="label">Before (pt)</div>
+                      <input class="input" type="number" step="1" data-path="headings.h1.paragraph.spacingBeforePt"/>
+                    </div>
+                    <div>
+                      <div class="label">After (pt)</div>
+                      <input class="input" type="number" step="1" data-path="headings.h1.paragraph.spacingAfterPt"/>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="label">Цвет</div>
+                    <div class="flex items-center gap-3 mt-2">
+                      <input class="h-10 w-14 rounded-xl bg-transparent border border-white/10" type="color" data-path="headings.h1.font.color"/>
+                      <input class="input mono" data-path="headings.h1.font.color"/>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- H2 -->
+              <div class="rounded-2xl bg-white/5 border border-white/10 p-4">
+                <div class="font-medium text-white/85">H2 (параграфы 1.1, 1.2...)</div>
+                <div class="grid sm:grid-cols-2 gap-4 mt-3">
+                  <div>
+                    <div class="label">Размер (pt)</div>
+                    <input class="input" type="number" step="1" data-path="headings.h2.font.sizePt"/>
+                  </div>
+                  <div>
+                    <div class="label">Выравнивание</div>
+                    <select class="input" data-path="headings.h2.paragraph.alignment">
+                      <option value="center">По центру</option>
+                      <option value="left">Слева</option>
+                      <option value="justify">По ширине</option>
+                      <option value="right">Справа</option>
+                    </select>
+                  </div>
+
+                  <div class="grid grid-cols-3 gap-3 sm:col-span-2">
+                    <label class="flex items-center gap-3"><input type="checkbox" class="accent-indigo-400" data-path="headings.h2.font.bold"/><span class="text-sm">Жирный</span></label>
+                    <label class="flex items-center gap-3"><input type="checkbox" class="accent-indigo-400" data-path="headings.h2.font.italic"/><span class="text-sm">Курсив</span></label>
+                    <label class="flex items-center gap-3"><input type="checkbox" class="accent-indigo-400" data-path="headings.h2.font.underline"/><span class="text-sm">Подчёрк.</span></label>
+                    <label class="flex items-center gap-3"><input type="checkbox" class="accent-indigo-400" data-path="headings.h2.font.allCaps"/><span class="text-sm">UPPERCASE</span></label>
+                    <label class="flex items-center gap-3"><input type="checkbox" class="accent-indigo-400" data-path="headings.h2.paragraph.pageBreakBefore"/><span class="text-sm">С новой стр.</span></label>
+                    <label class="flex items-center gap-3"><input type="checkbox" class="accent-indigo-400" data-path="headings.h2.paragraph.keepWithNext"/><span class="text-sm">Keep next</span></label>
+                  </div>
+
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <div class="label">Before (pt)</div>
+                      <input class="input" type="number" step="1" data-path="headings.h2.paragraph.spacingBeforePt"/>
+                    </div>
+                    <div>
+                      <div class="label">After (pt)</div>
+                      <input class="input" type="number" step="1" data-path="headings.h2.paragraph.spacingAfterPt"/>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div class="label">Цвет</div>
+                    <div class="flex items-center gap-3 mt-2">
+                      <input class="h-10 w-14 rounded-xl bg-transparent border border-white/10" type="color" data-path="headings.h2.font.color"/>
+                      <input class="input mono" data-path="headings.h2.font.color"/>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- H3 / H4 (advanced but usable) -->
+              <div class="rounded-2xl bg-white/5 border border-white/10 p-4">
+                <div class="font-medium text-white/85">H3 / H4 (опционально)</div>
+                <div class="grid sm:grid-cols-2 gap-4 mt-3">
+                  <div>
+                    <div class="label">H3 размер (pt)</div>
+                    <input class="input" type="number" step="1" data-path="headings.h3.font.sizePt"/>
+                  </div>
+                  <div>
+                    <div class="label">H4 размер (pt)</div>
+                    <input class="input" type="number" step="1" data-path="headings.h4.font.sizePt"/>
+                  </div>
+
+                  <div class="sm:col-span-2 hint">
+                    Эти уровни мы позже подключим, если вы захотите “1.1.1” и т.п.
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <div class="divider my-6"></div>
+
+          <!-- TOC -->
+          <div id="toc">
+            <div class="sub-title">5) Содержание (TOC)</div>
+            <div class="grid sm:grid-cols-2 gap-4 mt-3">
+              <div>
+                <div class="label">Показывать номера страниц</div>
+                <label class="flex items-center gap-3 mt-2">
+                  <input type="checkbox" class="accent-indigo-400" data-path="toc.showPageNumbers"/>
+                  <span class="text-sm text-white/80">Включить</span>
+                </label>
+              </div>
+              <div>
+                <div class="label">Лидер табуляции</div>
+                <select class="input" data-path="toc.tabLeader">
+                  <option value="dots">Точки …</option>
+                  <option value="hyphen">Дефисы -</option>
+                  <option value="none">Нет</option>
+                </select>
+                <div class="hint mt-1">Если номера страниц выключены — не влияет.</div>
+              </div>
+
+              <div>
+                <div class="label">Отступ пунктов (см)</div>
+                <input class="input" type="number" step="0.1" data-path="toc.itemIndentCm"/>
+              </div>
+              <div>
+                <div class="label">Отступ подпунктов (см)</div>
+                <input class="input" type="number" step="0.1" data-path="toc.subItemIndentCm"/>
+              </div>
+
+              <div class="sm:col-span-2 hint">
+                В ProjectAI сейчас TOC генерируется “текстом”. Позже подключим эти параметры и (опционально) номера страниц.
+              </div>
+            </div>
+          </div>
+
+          <div class="divider my-6"></div>
+
+          <!-- NUMBERING -->
+          <div id="numbering">
+            <div class="sub-title">6) Списки / нумерация</div>
+            <div class="grid sm:grid-cols-2 gap-4 mt-3">
+              <div>
+                <div class="label">Маркер буллетов</div>
+                <select class="input" data-path="numbering.bullets.symbol">
+                  <option value="•">•</option>
+                  <option value="–">–</option>
+                  <option value="○">○</option>
+                </select>
+              </div>
+              <div>
+                <div class="label">Нумерация (формат)</div>
+                <select class="input" data-path="numbering.decimal.format">
+                  <option value="1.">1.</option>
+                  <option value="1)">1)</option>
+                  <option value="[1]">[1]</option>
+                </select>
+              </div>
+
+              <div>
+                <div class="label">Отступ списка слева (см)</div>
+                <input class="input" type="number" step="0.1" data-path="numbering.common.leftIndentCm"/>
+              </div>
+              <div>
+                <div class="label">Выступ (hanging), см</div>
+                <input class="input" type="number" step="0.1" data-path="numbering.common.hangingIndentCm"/>
+              </div>
+
+              <div class="sm:col-span-2 hint">
+                Это применим к спискам задач/литературы (и к любым будущим спискам).
+              </div>
+            </div>
+          </div>
+
+          <div class="divider my-6"></div>
+
+          <!-- TABLES -->
+          <div id="tables">
+            <div class="sub-title">7) Таблицы</div>
+
+            <div class="grid sm:grid-cols-2 gap-4 mt-3">
+              <div>
+                <div class="label">Шрифт таблицы (если пусто — базовый)</div>
+                <input class="input" data-path="table.font.name" placeholder="Times New Roman"/>
+              </div>
+              <div>
+                <div class="label">Размер (pt)</div>
+                <input class="input" type="number" step="1" data-path="table.font.sizePt"/>
+              </div>
+
+              <div>
+                <div class="label">Ширина таблицы (%)</div>
+                <input class="input" type="number" step="1" min="10" max="100" data-path="table.layout.widthPercent"/>
+              </div>
+              <div>
+                <div class="label">Выравнивание таблицы</div>
+                <select class="input" data-path="table.layout.alignment">
+                  <option value="center">Центр</option>
+                  <option value="left">Слева</option>
+                  <option value="right">Справа</option>
+                </select>
+              </div>
+
+              <div class="sm:col-span-2">
+                <div class="label">Границы</div>
+                <div class="grid grid-cols-3 gap-3 mt-2">
+                  <div>
+                    <div class="hint">Толщина (pt)</div>
+                    <input class="input" type="number" step="0.25" data-path="table.borders.sizePt"/>
+                  </div>
+                  <div>
+                    <div class="hint">Стиль</div>
+                    <select class="input" data-path="table.borders.style">
+                      <option value="single">Single</option>
+                      <option value="dashed">Dashed</option>
+                      <option value="dotted">Dotted</option>
+                      <option value="double">Double</option>
+                      <option value="none">None</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div class="hint">Цвет</div>
+                    <div class="flex items-center gap-3">
+                      <input class="h-10 w-14 rounded-xl bg-transparent border border-white/10" type="color" data-path="table.borders.color"/>
+                      <input class="input mono" data-path="table.borders.color"/>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="sm:col-span-2">
+                <div class="label">Ячейки (поля внутри), мм</div>
+                <div class="grid grid-cols-4 gap-3 mt-2">
+                  <div>
+                    <div class="hint">Top</div>
+                    <input class="input" type="number" step="0.5" data-path="table.cellMarginsMm.top"/>
+                  </div>
+                  <div>
+                    <div class="hint">Right</div>
+                    <input class="input" type="number" step="0.5" data-path="table.cellMarginsMm.right"/>
+                  </div>
+                  <div>
+                    <div class="hint">Bottom</div>
+                    <input class="input" type="number" step="0.5" data-path="table.cellMarginsMm.bottom"/>
+                  </div>
+                  <div>
+                    <div class="hint">Left</div>
+                    <input class="input" type="number" step="0.5" data-path="table.cellMarginsMm.left"/>
+                  </div>
+                </div>
+              </div>
+
+              <div class="sm:col-span-2">
+                <div class="label">Заголовок таблицы (шапка)</div>
+                <div class="grid sm:grid-cols-2 gap-4 mt-2">
+                  <div>
+                    <div class="hint">Заливка шапки</div>
+                    <div class="flex items-center gap-3">
+                      <input class="h-10 w-14 rounded-xl bg-transparent border border-white/10" type="color" data-path="table.headerRow.shading"/>
+                      <input class="input mono" data-path="table.headerRow.shading"/>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <label class="flex items-center gap-3">
+                      <input type="checkbox" class="accent-indigo-400" data-path="table.headerRow.bold"/>
+                      <span class="text-sm text-white/80">Жирный</span>
+                    </label>
+                    <label class="flex items-center gap-3">
+                      <input type="checkbox" class="accent-indigo-400" data-path="table.headerRow.repeatHeader"/>
+                      <span class="text-sm text-white/80">Повторять</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="sm:col-span-2">
+                <div class="label">Поведение таблицы</div>
+                <div class="grid sm:grid-cols-3 gap-3 mt-2">
+                  <label class="flex items-center gap-3">
+                    <input type="checkbox" class="accent-indigo-400" data-path="table.behavior.allowRowSplit"/>
+                    <span class="text-sm text-white/80">Row split</span>
+                  </label>
+                  <label class="flex items-center gap-3">
+                    <input type="checkbox" class="accent-indigo-400" data-path="table.behavior.keepWithNext"/>
+                    <span class="text-sm text-white/80">Keep next</span>
+                  </label>
+                  <label class="flex items-center gap-3">
+                    <input type="checkbox" class="accent-indigo-400" data-path="table.behavior.keepTogether"/>
+                    <span class="text-sm text-white/80">Keep together</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider my-6"></div>
+
+          <!-- CAPTIONS -->
+          <div id="captions">
+            <div class="sub-title">8) Подписи (таблицы/рисунки)</div>
+            <div class="grid sm:grid-cols-2 gap-4 mt-3">
+              <div>
+                <div class="label">Подпись таблицы: позиция</div>
+                <select class="input" data-path="captions.table.position">
+                  <option value="above">Над таблицей</option>
+                  <option value="below">Под таблицей</option>
+                </select>
+              </div>
+              <div>
+                <div class="label">Подпись рисунка: позиция</div>
+                <select class="input" data-path="captions.figure.position">
+                  <option value="below">Под рисунком</option>
+                  <option value="above">Над рисунком</option>
+                </select>
+              </div>
+
+              <div>
+                <div class="label">Формат номера (табл.)</div>
+                <select class="input" data-path="captions.table.numberFormat">
+                  <option value="Таблица {n} – ">Таблица 1 –</option>
+                  <option value="Таблица {n}. ">Таблица 1.</option>
+                  <option value="Table {n} – ">Table 1 –</option>
+                </select>
+              </div>
+              <div>
+                <div class="label">Формат номера (рис.)</div>
+                <select class="input" data-path="captions.figure.numberFormat">
+                  <option value="Рисунок {n} – ">Рисунок 1 –</option>
+                  <option value="Рис. {n} – ">Рис. 1 –</option>
+                  <option value="Figure {n} – ">Figure 1 –</option>
+                </select>
+              </div>
+
+              <div>
+                <div class="label">Стиль подписи: выравнивание</div>
+                <select class="input" data-path="captions.style.paragraph.alignment">
+                  <option value="center">По центру</option>
+                  <option value="left">Слева</option>
+                  <option value="right">Справа</option>
+                  <option value="justify">По ширине</option>
+                </select>
+              </div>
+              <div>
+                <div class="label">Стиль подписи: размер (pt)</div>
+                <input class="input" type="number" step="1" data-path="captions.style.font.sizePt"/>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider my-6"></div>
+
+          <!-- HEADERS -->
+          <div id="headers">
+            <div class="sub-title">9) Колонтитулы и номера страниц</div>
+            <div class="grid sm:grid-cols-2 gap-4 mt-3">
+              <div>
+                <div class="label">Нумерация страниц</div>
+                <label class="flex items-center gap-3 mt-2">
+                  <input type="checkbox" class="accent-indigo-400" data-path="headersFooters.pageNumbers.enabled"/>
+                  <span class="text-sm text-white/80">Включить</span>
+                </label>
+              </div>
+              <div>
+                <div class="label">Позиция номера</div>
+                <select class="input" data-path="headersFooters.pageNumbers.position">
+                  <option value="footer-center">Низ по центру</option>
+                  <option value="footer-right">Низ справа</option>
+                  <option value="footer-left">Низ слева</option>
+                  <option value="header-center">Верх по центру</option>
+                  <option value="header-right">Верх справа</option>
+                  <option value="header-left">Верх слева</option>
+                </select>
+              </div>
+
+              <div>
+                <div class="label">Начать нумерацию с</div>
+                <input class="input" type="number" step="1" data-path="headersFooters.pageNumbers.startAt"/>
+              </div>
+              <div>
+                <div class="label">Не показывать на титульном</div>
+                <label class="flex items-center gap-3 mt-2">
+                  <input type="checkbox" class="accent-indigo-400" data-path="headersFooters.pageNumbers.hideOnTitle"/>
+                  <span class="text-sm text-white/80">Скрыть на первой</span>
+                </label>
+              </div>
+
+              <div>
+                <div class="label">Разные чёт/неч</div>
+                <label class="flex items-center gap-3 mt-2">
+                  <input type="checkbox" class="accent-indigo-400" data-path="headersFooters.differentOddEven"/>
+                  <span class="text-sm text-white/80">Включить</span>
+                </label>
+              </div>
+              <div>
+                <div class="label">Разная первая страница</div>
+                <label class="flex items-center gap-3 mt-2">
+                  <input type="checkbox" class="accent-indigo-400" data-path="headersFooters.differentFirstPage"/>
+                  <span class="text-sm text-white/80">Включить</span>
+                </label>
+              </div>
+
+              <div class="sm:col-span-2">
+                <div class="label">Текст колонтитула (опционально)</div>
+                <div class="grid sm:grid-cols-2 gap-4 mt-2">
+                  <div>
+                    <div class="hint">Header text</div>
+                    <input class="input" data-path="headersFooters.headerText" placeholder="Например: Индивидуальный проект"/>
+                  </div>
+                  <div>
+                    <div class="hint">Footer text</div>
+                    <input class="input" data-path="headersFooters.footerText" placeholder="Например: {{topic}}"/>
+                  </div>
+                </div>
+                <div class="hint mt-2">
+                  В ProjectAI можно будет подставлять переменные ({{topic}} и т.п.) — мы подключим это при синхронизации.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="divider my-6"></div>
+
+          <!-- BIB -->
+          <div id="bibliography">
+            <div class="sub-title">10) Список литературы</div>
+            <div class="grid sm:grid-cols-2 gap-4 mt-3">
+              <div>
+                <div class="label">Нумерация источников</div>
+                <select class="input" data-path="bibliography.numbering.format">
+                  <option value="1.">1.</option>
+                  <option value="[1]">[1]</option>
+                  <option value="1)">1)</option>
+                </select>
+              </div>
+              <div>
+                <div class="label">Выступ (hanging), см</div>
+                <input class="input" type="number" step="0.1" data-path="bibliography.item.hangingIndentCm"/>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <div class="label">Before (pt)</div>
+                  <input class="input" type="number" step="1" data-path="bibliography.item.spacingBeforePt"/>
+                </div>
+                <div>
+                  <div class="label">After (pt)</div>
+                  <input class="input" type="number" step="1" data-path="bibliography.item.spacingAfterPt"/>
+                </div>
+              </div>
+
+              <div>
+                <div class="label">Выравнивание</div>
+                <select class="input" data-path="bibliography.item.alignment">
+                  <option value="justify">По ширине</option>
+                  <option value="left">Слева</option>
+                </select>
+              </div>
+
+              <div class="sm:col-span-2 hint">
+                Обычно: hanging 1.0–1.25 см (или 0), зависит от требований.
+              </div>
+            </div>
+          </div>
+
+          <div class="divider my-6"></div>
+
+          <!-- ADVANCED -->
+          <div id="advanced">
+            <div class="sub-title">11) Advanced (расширение / raw)</div>
+            <div class="hint mt-1">
+              Если потребуются “редкие” параметры Word, можно хранить их здесь как сырой JSON/текст.
+              Позже мы добавим обработку (по возможности) при генерации DOCX.
+            </div>
+
+            <div class="mt-3">
+              <div class="label">Compatibility flags (JSON)</div>
+              <textarea class="input mono" rows="4" data-path="advanced.compatibilityJson"
+                placeholder='{"useRussianQuotes":true,"enforceNoDotsInHeadings":true}'></textarea>
+              <div class="hint mt-2">
+                Сюда можно складывать любые флаги/правила, которые мы затем применим в логике экспорта.
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <div class="label">Raw OpenXML / notes (текст)</div>
+              <textarea class="input mono" rows="4" data-path="advanced.raw"
+                placeholder="Опционально: дополнительные требования, которые пока не поддержаны генератором."></textarea>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Preview -->
+      <section class="lg:col-span-3">
+        <div class="glass rounded-3xl p-5">
+          <div class="text-sm text-white/70 font-medium">Живой HTML-превью (приблизительно)</div>
+          <div class="hint mt-1">
+            Это НЕ точный Word, но помогает визуально проверить базовые параметры.
+          </div>
+
+          <div class="divider my-4"></div>
+
+          <div id="livePreview" class="bg-white/5 border border-white/10 rounded-2xl p-4 overflow-auto max-h-[70vh]"></div>
+        </div>
+
+        <div class="glass rounded-3xl p-5 mt-6">
+          <div class="text-sm text-white/70 font-medium">JSON редактор (advanced)</div>
+          <div class="hint mt-1">Можно вручную править JSON целиком и применить.</div>
+
+          <textarea id="jsonEditor" class="input mono mt-3" rows="10"></textarea>
+          <div class="mt-3 grid grid-cols-2 gap-2">
+            <button id="applyJsonBtn" class="btn btn-primary">Применить JSON</button>
+            <button id="formatJsonBtn" class="btn">Форматировать</button>
+          </div>
+          <div class="hint mt-3">
+            Если сломать JSON — покажет ошибку. Используйте “Форматировать”.
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    // ---------------------------
+    // Schema + defaults
+    // ---------------------------
+    const SCHEMA_VERSION = "projectai-docx-style/v1";
+    const STORAGE_KEY = "projectai_docx_style_generator_v1";
+
+    const DEFAULT_STYLE = {
+      meta: {
+        schemaVersion: SCHEMA_VERSION,
+        name: "Школьный (ГОСТ-подобный)",
+        author: "ProjectAI",
+        description: "Times New Roman 14, поля 3/1.5/2/2, межстрочный 1.5, отступ 1.25 см",
+        notes: "",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+
+      page: {
+        size: "A4",
+        orientation: "portrait",
+        marginsCm: { top: 2.0, right: 1.5, bottom: 2.0, left: 3.0 },
+        gutterCm: 0.0,
+        mirrorMargins: false,
+        headerDistanceCm: 1.25,
+        footerDistanceCm: 1.25,
+        columns: { count: 1, spacingCm: 1.0 }
+      },
+
+      base: {
+        font: { name: "Times New Roman", sizePt: 14, color: "#000000", lang: "ru-RU" },
+        paragraph: {
+          alignment: "justify",
+          lineSpacing: "1.5",
+          customLine: 1.35,
+          spacingBeforePt: 0,
+          spacingAfterPt: 0,
+          firstLineIndentCm: 1.25,
+          hangingIndentCm: 0,
+          leftIndentCm: 0,
+          rightIndentCm: 0,
+          widowControl: true,
+          keepTogether: false,
+          keepWithNext: false
+        }
+      },
+
+      headings: {
+        h1: {
+          font: { sizePt: 14, bold: true, italic: false, underline: false, allCaps: true, color: "#000000" },
+          paragraph: { alignment: "center", spacingBeforePt: 24, spacingAfterPt: 24, pageBreakBefore: true, keepWithNext: true }
+        },
+        h2: {
+          font: { sizePt: 14, bold: true, italic: false, underline: false, allCaps: false, color: "#000000" },
+          paragraph: { alignment: "center", spacingBeforePt: 18, spacingAfterPt: 12, pageBreakBefore: false, keepWithNext: true }
+        },
+        h3: {
+          font: { sizePt: 14, bold: true, italic: false, underline: false, allCaps: false, color: "#000000" },
+          paragraph: { alignment: "left", spacingBeforePt: 12, spacingAfterPt: 6, pageBreakBefore: false, keepWithNext: true }
+        },
+        h4: {
+          font: { sizePt: 14, bold: true, italic: false, underline: false, allCaps: false, color: "#000000" },
+          paragraph: { alignment: "left", spacingBeforePt: 10, spacingAfterPt: 4, pageBreakBefore: false, keepWithNext: true }
+        }
+      },
+
+      toc: {
+        showPageNumbers: false,
+        tabLeader: "dots",
+        itemIndentCm: 0,
+        subItemIndentCm: 1.25
+      },
+
+      numbering: {
+        bullets: { symbol: "•" },
+        decimal: { format: "1." },
+        common: { leftIndentCm: 1.25, hangingIndentCm: 0.6 }
+      },
+
+      table: {
+        font: { name: "", sizePt: 12 },
+        layout: { widthPercent: 100, alignment: "center" },
+        borders: { sizePt: 0.75, style: "single", color: "#000000" },
+        cellMarginsMm: { top: 1.5, right: 2.0, bottom: 1.5, left: 2.0 },
+        headerRow: { shading: "#eaeaea", bold: true, repeatHeader: true },
+        behavior: { allowRowSplit: true, keepTogether: false, keepWithNext: false }
+      },
+
+      captions: {
+        style: {
+          font: { sizePt: 12 },
+          paragraph: { alignment: "center" }
+        },
+        table: { position: "above", numberFormat: "Таблица {n} – " },
+        figure: { position: "below", numberFormat: "Рисунок {n} – " }
+      },
+
+      headersFooters: {
+        differentFirstPage: true,
+        differentOddEven: false,
+        headerText: "",
+        footerText: "",
+        pageNumbers: {
+          enabled: true,
+          position: "footer-center",
+          startAt: 1,
+          hideOnTitle: true
+        }
+      },
+
+      bibliography: {
+        numbering: { format: "1." },
+        item: {
+          alignment: "justify",
+          hangingIndentCm: 0,
+          spacingBeforePt: 0,
+          spacingAfterPt: 0
+        }
+      },
+
+      advanced: {
+        compatibilityJson: "",
+        raw: ""
+      }
+    };
+
+    const PRESETS = {
+      school: () => deepClone(DEFAULT_STYLE),
+      college: () => {
+        const s = deepClone(DEFAULT_STYLE);
+        s.meta.name = "Колледж";
+        s.meta.description = "Чуть более плотные таблицы и меньше пробелов у заголовков";
+        s.table.font.sizePt = 12;
+        s.headings.h1.paragraph.spacingBeforePt = 18;
+        s.headings.h1.paragraph.spacingAfterPt = 18;
+        return s;
+      },
+      coursework: () => {
+        const s = deepClone(DEFAULT_STYLE);
+        s.meta.name = "Курсовая";
+        s.meta.description = "Больше “академичности”, можно включить номера страниц и более строгие интервалы";
+        s.table.font.sizePt = 12;
+        s.base.paragraph.spacingAfterPt = 0;
+        s.headersFooters.pageNumbers.hideOnTitle = true;
+        s.toc.showPageNumbers = false; // позже можно включить, когда сделаем точные номера
+        return s;
+      }
+    };
+
+    let STYLE = deepClone(DEFAULT_STYLE);
+
+    // ---------------------------
+    // Helpers
+    // ---------------------------
+    function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+
+    function getByPath(obj, path) {
+      return path.split(".").reduce((acc, key) => (acc ? acc[key] : undefined), obj);
+    }
+    function setByPath(obj, path, value) {
+      const parts = path.split(".");
+      let cur = obj;
+      for (let i = 0; i < parts.length - 1; i++) {
+        const k = parts[i];
+        if (!cur[k] || typeof cur[k] !== "object") cur[k] = {};
+        cur = cur[k];
+      }
+      cur[parts[parts.length - 1]] = value;
+    }
+
+    function nowIso() { return new Date().toISOString(); }
+
+    function clampNumber(v, def = 0) {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : def;
+    }
+
+    function safeJsonParse(s) {
+      try { return { ok: true, val: JSON.parse(s) }; }
+      catch (e) { return { ok: false, error: e.message }; }
+    }
+
+    function normalizeStyle(s) {
+      // Минимальная нормализация/проставление schemaVersion + timestamps
+      s.meta = s.meta || {};
+      s.meta.schemaVersion = SCHEMA_VERSION;
+      s.meta.updatedAt = nowIso();
+      if (!s.meta.createdAt) s.meta.createdAt = nowIso();
+      return s;
+    }
+
+    function styleToJson() {
+      const out = deepClone(STYLE);
+      normalizeStyle(out);
+      return out;
+    }
+
+    function toPrettyJson(obj) {
+      return JSON.stringify(obj, null, 2);
+    }
+
+    function download(filename, text) {
+      const blob = new Blob([text], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    async function copyToClipboard(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        alert("✅ JSON скопирован в буфер обмена.");
+      } catch (e) {
+        alert("❌ Не удалось скопировать (браузер запретил). Можно вручную выделить JSON в предпросмотре.");
+      }
+    }
+
+    // px conversion for preview only
+    function ptToPx(pt) { return (Number(pt) || 0) * (96/72); }
+    function cmToPx(cm) { return (Number(cm) || 0) * (96/2.54); }
+
+    // ---------------------------
+    // UI binding
+    // ---------------------------
+    const jsonPreview = document.getElementById("jsonPreview");
+    const jsonEditor = document.getElementById("jsonEditor");
+    const livePreview = document.getElementById("livePreview");
+
+    function bindInputs() {
+      document.querySelectorAll("[data-path]").forEach(el => {
+        const path = el.getAttribute("data-path");
+        const tag = el.tagName.toLowerCase();
+        const type = (el.getAttribute("type") || "").toLowerCase();
+
+        // init value from style
+        const v = getByPath(STYLE, path);
+
+        if (type === "checkbox") {
+          el.checked = !!v;
+          el.addEventListener("change", () => {
+            setByPath(STYLE, path, !!el.checked);
+            onStyleChanged();
+          });
+        } else if (tag === "select") {
+          el.value = (v !== undefined && v !== null) ? String(v) : el.value;
+          el.addEventListener("change", () => {
+            setByPath(STYLE, path, el.value);
+            onStyleChanged();
+          });
+        } else if (type === "number") {
+          el.value = (v !== undefined && v !== null) ? String(v) : "";
+          el.addEventListener("input", () => {
+            setByPath(STYLE, path, clampNumber(el.value, 0));
+            onStyleChanged();
+          });
+        } else {
+          el.value = (v !== undefined && v !== null) ? String(v) : "";
+          el.addEventListener("input", () => {
+            setByPath(STYLE, path, el.value);
+            onStyleChanged();
+          });
+        }
+      });
+    }
+
+    function syncInputsFromStyle() {
+      document.querySelectorAll("[data-path]").forEach(el => {
+        const path = el.getAttribute("data-path");
+        const v = getByPath(STYLE, path);
+        const type = (el.getAttribute("type") || "").toLowerCase();
+        const tag = el.tagName.toLowerCase();
+
+        if (type === "checkbox") el.checked = !!v;
+        else if (tag === "select") el.value = (v !== undefined && v !== null) ? String(v) : el.value;
+        else el.value = (v !== undefined && v !== null) ? String(v) : "";
+      });
+    }
+
+    // ---------------------------
+    // Preview rendering
+    // ---------------------------
+    function effectiveLineSpacing() {
+      const ls = STYLE.base.paragraph.lineSpacing;
+      if (ls === "custom") return Number(STYLE.base.paragraph.customLine || 1.3);
+      return Number(ls || 1.5);
+    }
+
+    function renderLivePreview() {
+      const baseFont = STYLE.base.font.name || "Times New Roman";
+      const baseSize = Number(STYLE.base.font.sizePt || 14);
+      const baseColor = STYLE.base.font.color || "#000000";
+      const line = effectiveLineSpacing();
+
+      const pAlign = STYLE.base.paragraph.alignment || "justify";
+      const firstLine = cmToPx(STYLE.base.paragraph.firstLineIndentCm || 1.25);
+      const pBefore = ptToPx(STYLE.base.paragraph.spacingBeforePt || 0);
+      const pAfter = ptToPx(STYLE.base.paragraph.spacingAfterPt || 0);
+
+      function headingCss(h) {
+        const f = STYLE.headings[h].font;
+        const par = STYLE.headings[h].paragraph;
+        return `
+          font-family:${baseFont};
+          font-size:${ptToPx(f.sizePt || baseSize)}px;
+          font-weight:${f.bold ? 700 : 600};
+          font-style:${f.italic ? "italic" : "normal"};
+          text-decoration:${f.underline ? "underline" : "none"};
+          text-transform:${f.allCaps ? "uppercase" : "none"};
+          color:${f.color || baseColor};
+          text-align:${par.alignment || "center"};
+          margin-top:${ptToPx(par.spacingBeforePt || 0)}px;
+          margin-bottom:${ptToPx(par.spacingAfterPt || 0)}px;
+        `;
+      }
+
+      const h1 = `<div style="${headingCss("h1")}">ВВЕДЕНИЕ</div>`;
+      const h2 = `<div style="${headingCss("h2")}">1.1 Пример параграфа</div>`;
+      const para = `
+        <div style="
+          font-family:${baseFont};
+          font-size:${ptToPx(baseSize)}px;
+          color:${baseColor};
+          line-height:${line};
+          text-align:${pAlign};
+          margin-top:${pBefore}px;
+          margin-bottom:${pAfter}px;
+          text-indent:${firstLine}px;
+        ">
+          В современном мире оформление документа играет важную роль: оно влияет на восприятие текста, удобочитаемость и соответствие требованиям образовательного учреждения. 
+          Этот блок показывает пример базового абзаца с установленными отступами, интервалами и выравниванием.
+        </div>
+      `;
+
+      const captionAlign = STYLE.captions.style.paragraph.alignment || "center";
+      const capSize = ptToPx(STYLE.captions.style.font.sizePt || 12);
+
+      const tableFontSize = ptToPx(STYLE.table.font.sizePt || 12);
+      const borderSize = Math.max(1, Math.round((STYLE.table.borders.sizePt || 0.75) * 1.3));
+      const borderColor = STYLE.table.borders.color || "#000";
+      const headerShade = STYLE.table.headerRow.shading || "#eee";
+
+      const tableCaption = `
+        <div style="
+          font-family:${baseFont};
+          font-size:${capSize}px;
+          text-align:${captionAlign};
+          margin: 10px 0 6px 0;
+          color:${baseColor};
+        ">
+          ${STYLE.captions.table.numberFormat.replace("{n}", "1")}Пример таблицы
+        </div>
+      `;
+
+      const table = `
+        <table style="
+          width:100%;
+          border-collapse:collapse;
+          font-family:${baseFont};
+          font-size:${tableFontSize}px;
+          color:${baseColor};
+          margin-bottom: 10px;
+        ">
+          <thead>
+            <tr>
+              <th style="border:${borderSize}px solid ${borderColor}; padding:6px; background:${headerShade}; font-weight:${STYLE.table.headerRow.bold ? 700 : 500}; text-align:center;">Параметр</th>
+              <th style="border:${borderSize}px solid ${borderColor}; padding:6px; background:${headerShade}; font-weight:${STYLE.table.headerRow.bold ? 700 : 500}; text-align:center;">Значение</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="border:${borderSize}px solid ${borderColor}; padding:6px;">Шрифт</td>
+              <td style="border:${borderSize}px solid ${borderColor}; padding:6px;">${baseFont}, ${baseSize}pt</td>
+            </tr>
+            <tr>
+              <td style="border:${borderSize}px solid ${borderColor}; padding:6px;">Межстрочный</td>
+              <td style="border:${borderSize}px solid ${borderColor}; padding:6px;">${line}</td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+
+      livePreview.innerHTML = `
+        <div class="text-xs text-white/60 mb-3">Preview (приблизительно)</div>
+        <div style="background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.08); border-radius:16px; padding:14px;">
+          ${h1}
+          ${para}
+          ${h2}
+          ${para}
+          ${tableCaption}
+          ${table}
+          <div class="text-xs text-white/55 mt-2">Подписи/таблицы/заголовки показываются условно.</div>
+        </div>
+      `;
+    }
+
+    function refreshJsonViews() {
+      const json = toPrettyJson(styleToJson());
+      jsonPreview.textContent = json;
+      jsonEditor.value = json;
+    }
+
+    function onStyleChanged() {
+      STYLE.meta.updatedAt = nowIso();
+      refreshJsonViews();
+      renderLivePreview();
+
+      // Auto-save the current profile for the main app (best-effort).
+      // This makes changes in style-generator.html immediately available to DOCX export.
+      try {
+        localStorage.setItem(STORAGE_KEY, toPrettyJson(styleToJson()));
+      } catch (_) {}
+    }
+
+    // ---------------------------
+    // Buttons
+    // ---------------------------
+    document.getElementById("downloadBtn").addEventListener("click", () => {
+      const out = styleToJson();
+      const name = (out.meta?.name || "docx-style").replace(/[^\wа-яА-Я\- ]+/g, "").trim().slice(0, 40) || "docx-style";
+      download(`${name}.json`, toPrettyJson(out));
+    });
+
+    document.getElementById("copyBtn").addEventListener("click", () => {
+      copyToClipboard(toPrettyJson(styleToJson()));
+    });
+
+    document.getElementById("saveLocalBtn").addEventListener("click", () => {
+      try {
+        localStorage.setItem(STORAGE_KEY, toPrettyJson(styleToJson()));
+        alert("✅ Сохранено в localStorage.");
+      } catch (e) {
+        alert("❌ Не удалось сохранить: " + e.message);
+      }
+    });
+
+    document.getElementById("loadBtn").addEventListener("click", () => {
+      document.getElementById("fileInput").click();
+    });
+
+    document.getElementById("fileInput").addEventListener("change", async (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (!f) return;
+      const text = await f.text();
+      const parsed = safeJsonParse(text);
+      if (!parsed.ok) {
+        alert("❌ Ошибка JSON: " + parsed.error);
+        e.target.value = "";
+        return;
+      }
+      STYLE = normalizeStyle(parsed.val);
+      syncInputsFromStyle();
+      onStyleChanged();
+      alert("✅ Профиль загружен.");
+      e.target.value = "";
+    });
+
+    document.getElementById("resetBtn").addEventListener("click", () => {
+      if (!confirm("Сбросить настройки к дефолтным?")) return;
+      STYLE = deepClone(DEFAULT_STYLE);
+      syncInputsFromStyle();
+      onStyleChanged();
+    });
+
+    document.querySelectorAll("[data-preset]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const key = btn.getAttribute("data-preset");
+        const maker = PRESETS[key];
+        if (!maker) return;
+        STYLE = normalizeStyle(maker());
+        syncInputsFromStyle();
+        onStyleChanged();
+      });
+    });
+
+    document.getElementById("formatJsonBtn").addEventListener("click", () => {
+      const parsed = safeJsonParse(jsonEditor.value);
+      if (!parsed.ok) { alert("❌ Ошибка JSON: " + parsed.error); return; }
+      jsonEditor.value = toPrettyJson(parsed.val);
+    });
+
+    document.getElementById("applyJsonBtn").addEventListener("click", () => {
+      const parsed = safeJsonParse(jsonEditor.value);
+      if (!parsed.ok) { alert("❌ Ошибка JSON: " + parsed.error); return; }
+      STYLE = normalizeStyle(parsed.val);
+      syncInputsFromStyle();
+      onStyleChanged();
+      alert("✅ JSON применён.");
+    });
+
+    // ---------------------------
+    // Init
+    // ---------------------------
+    (function init() {
+      // загрузить последний локальный, если есть
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = safeJsonParse(saved);
+          if (parsed.ok) STYLE = normalizeStyle(parsed.val);
+        }
+      } catch (_) {}
+
+      bindInputs();
+      syncInputsFromStyle();
+      onStyleChanged();
+    })();
+  </script>
+</body>
+</html>

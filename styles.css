@@ -1,0 +1,26 @@
+.bg-mesh{
+  background:
+    radial-gradient(800px 400px at 15% 10%, rgba(99,102,241,.22), transparent 60%),
+    radial-gradient(700px 400px at 85% 20%, rgba(16,185,129,.18), transparent 55%),
+    radial-gradient(700px 500px at 50% 95%, rgba(236,72,153,.14), transparent 55%),
+    linear-gradient(180deg, #0b1220 0%, #0b1220 45%, #0a1020 100%);
+}
+
+.glass{
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.10);
+  backdrop-filter: blur(14px);
+}
+
+.shadow-soft{
+  box-shadow: 0 24px 70px rgba(0,0,0,.35);
+}
+
+@keyframes pulseDot {
+  0%,100% { transform: scale(1); opacity: 1 }
+  50%     { transform: scale(1.15); opacity: .75 }
+}
+
+.pulse-dot{
+  animation: pulseDot 1.2s ease-in-out infinite;
+}
