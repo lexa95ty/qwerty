@@ -128,6 +128,39 @@ function assertNoStandaloneBreakBeforeHeadings(documentXml, headingStyleIds) {
   });
 }
 
+function paragraphText(paragraph) {
+  const texts = Array.from(paragraph.getElementsByTagName("w:t"));
+  return texts.map((node) => node.textContent || "").join("");
+}
+
+function isInsideTable(node) {
+  let current = node;
+  while (current) {
+    if (current.nodeName === "w:tbl") {
+      return true;
+    }
+    current = current.parentNode;
+  }
+  return false;
+}
+
+function getFirstLineIndent(paragraph) {
+  const paragraphProps = paragraph.getElementsByTagName("w:pPr")[0];
+  const indent = paragraphProps?.getElementsByTagName("w:ind")[0];
+  const value = indent?.getAttribute("w:firstLine");
+  return value != null ? Number(value) : null;
+}
+
+function assertParagraphsHaveFirstLineIndent(paragraphs, label) {
+  paragraphs.forEach((paragraph) => {
+    const firstLine = getFirstLineIndent(paragraph);
+    assert.ok(
+      Number.isFinite(firstLine) && firstLine > 0,
+      `${label} paragraph is missing first line indent`,
+    );
+  });
+}
+
 function buildSamplePayload() {
   const chapters = Array.from({ length: 2 }, (_, chapterIndex) => {
     const chapterNumber = chapterIndex + 1;
@@ -229,6 +262,39 @@ async function main() {
   assert.ok(headingStyleIds.size > 0, "Heading 1 style not found");
   assertHeadingStylesHavePageBreak(stylesDoc, headingStyleIds);
   assertNoStandaloneBreakBeforeHeadings(documentXml, headingStyleIds);
+
+  const doc = new DOMParser().parseFromString(documentXml, "application/xml");
+  const paragraphs = Array.from(doc.getElementsByTagName("w:p")).filter(
+    (paragraph) => !isInsideTable(paragraph),
+  );
+  const introParagraphs = paragraphs.filter((paragraph) =>
+    /Intro paragraph \d/.test(paragraphText(paragraph)),
+  );
+  const conclusionParagraphs = paragraphs.filter((paragraph) =>
+    /Conclusion paragraph \d/.test(paragraphText(paragraph)),
+  );
+  const sectionParagraphs = paragraphs.filter((paragraph) =>
+    /Chapter \d section \d paragraph \d/.test(paragraphText(paragraph)),
+  );
+  const appendixParagraphs = paragraphs.filter((paragraph) =>
+    /Appendix [AB] paragraph \d/.test(paragraphText(paragraph)),
+  );
+
+  assertParagraphsHaveFirstLineIndent(introParagraphs, "Intro");
+  assertParagraphsHaveFirstLineIndent(conclusionParagraphs, "Conclusion");
+  assertParagraphsHaveFirstLineIndent(sectionParagraphs, "Section");
+  assertParagraphsHaveFirstLineIndent(appendixParagraphs, "Appendix");
+
+  const headingParagraphs = paragraphs.filter((paragraph) =>
+    isHeadingParagraph(paragraph, headingStyleIds),
+  );
+  headingParagraphs.forEach((paragraph) => {
+    const firstLine = getFirstLineIndent(paragraph);
+    assert.ok(
+      !firstLine || firstLine <= 0,
+      "Heading 1 paragraph must not gain first line indent",
+    );
+  });
 }
 
 main().catch((error) => {
