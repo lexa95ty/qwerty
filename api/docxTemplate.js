@@ -287,6 +287,64 @@ function ensureHeading1PageBreak(stylesDoc, headingStyleIds) {
   return { changed, headingStyleIds };
 }
 
+function findDefaultParagraphStyle(stylesDoc) {
+  const styles = Array.from(stylesDoc.getElementsByTagName("w:style"));
+  const defaultParagraph = styles.find((style) => {
+    const type = (style.getAttribute("w:type") || "").toLowerCase();
+    const isDefault = (style.getAttribute("w:default") || "") === "1";
+    return type === "paragraph" && isDefault;
+  });
+
+  const defaultStyleId = defaultParagraph?.getAttribute("w:styleId") || null;
+  let firstLine = null;
+
+  if (defaultParagraph) {
+    const paragraphProps = defaultParagraph.getElementsByTagName("w:pPr")[0];
+    const indentNode = paragraphProps?.getElementsByTagName("w:ind")[0];
+    const firstLineAttr = indentNode?.getAttribute("w:firstLine");
+    if (firstLineAttr !== null && firstLineAttr !== undefined) {
+      firstLine = Number(firstLineAttr);
+    }
+  }
+
+  const defaultFirstLineTwips = Number.isFinite(firstLine) && firstLine !== 0
+    ? firstLine
+    : 709;
+
+  return { defaultStyleId, defaultFirstLineTwips };
+}
+
+function isBodyTextPlaceholder(key) {
+  return (
+    key === "INTRO" ||
+    key === "CONCLUSION" ||
+    /^CH\d+_\d+_TEXT$/.test(key) ||
+    /^APP\d+_CONTENT$/.test(key)
+  );
+}
+
+function applyDefaultParagraphStyling(
+  doc,
+  paragraph,
+  defaultStyleId,
+  defaultFirstLineTwips,
+) {
+  const firstChild = paragraph.firstChild;
+  const paragraphProps = ensureChildElement(doc, paragraph, "w:pPr", firstChild);
+
+  if (defaultStyleId) {
+    const paragraphPropsFirstChild = paragraphProps.firstChild;
+    const pStyle = ensureChildElement(doc, paragraphProps, "w:pStyle", paragraphPropsFirstChild);
+    pStyle.setAttribute("w:val", defaultStyleId);
+  }
+
+  const indent = ensureChildElement(doc, paragraphProps, "w:ind");
+  const firstLineAttr = indent.getAttribute("w:firstLine");
+  if (!firstLineAttr || firstLineAttr === "0") {
+    indent.setAttribute("w:firstLine", String(defaultFirstLineTwips));
+  }
+}
+
 function isHeadingParagraph(paragraph, headingStyleIds) {
   const paragraphProps = paragraph.getElementsByTagName("w:pPr")[0];
   if (!paragraphProps) {
@@ -845,10 +903,15 @@ async function renderDocxFromTemplate(templateBuffer, templateData) {
   const serializer = new XMLSerializer();
 
   let headingStyleIds = new Set();
+  let defaultParagraphStyleId = null;
+  let defaultParagraphFirstLine = 709;
   try {
     const stylesXml = await readZipText(zip, "word/styles.xml");
     const stylesDoc = parser.parseFromString(stylesXml, "application/xml");
     headingStyleIds = findHeading1StyleIds(stylesDoc);
+    const defaultStyle = findDefaultParagraphStyle(stylesDoc);
+    defaultParagraphStyleId = defaultStyle.defaultStyleId ?? defaultParagraphStyleId;
+    defaultParagraphFirstLine = defaultStyle.defaultFirstLineTwips ?? defaultParagraphFirstLine;
     const { changed, headingStyleIds: resolved } = ensureHeading1PageBreak(
       stylesDoc,
       headingStyleIds,
@@ -883,6 +946,7 @@ async function renderDocxFromTemplate(templateBuffer, templateData) {
           const blocks = parseTextToBlocks(value);
           const parent = paragraph.parentNode;
           let insertedTable = false;
+          const applyBodyDefaultStyle = isBodyTextPlaceholder(key);
           blocks.forEach((block) => {
             if (block.type === "table") {
               parent.insertBefore(
@@ -899,6 +963,14 @@ async function renderDocxFromTemplate(templateBuffer, templateData) {
               cloned,
               String(block.text ?? ""),
             );
+            if (applyBodyDefaultStyle) {
+              applyDefaultParagraphStyling(
+                doc,
+                cloned,
+                defaultParagraphStyleId,
+                defaultParagraphFirstLine,
+              );
+            }
             parent.insertBefore(cloned, paragraph);
           });
           parent.removeChild(paragraph);
