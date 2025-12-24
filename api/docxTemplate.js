@@ -323,8 +323,16 @@ function isStandalonePageBreakParagraph(paragraph) {
   }
 
   const allowed = new Set(["w:pPr", "w:r", "w:rPr", "w:br", "w:lastRenderedPageBreak"]);
+  const allowedParents = new Set(["w:pPr", "w:rPr"]);
   const allNodes = Array.from(paragraph.getElementsByTagName("*"));
-  return allNodes.every((node) => allowed.has(node.nodeName));
+  return allNodes.every((node) => {
+    if (allowed.has(node.nodeName)) {
+      return true;
+    }
+
+    const parentName = node.parentNode?.nodeName;
+    return parentName && allowedParents.has(parentName);
+  });
 }
 
 function removeStandaloneBreaksBeforeHeadings(doc, headingStyleIds) {
