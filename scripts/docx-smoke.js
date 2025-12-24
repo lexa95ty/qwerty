@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const assert = require("assert");
 const JSZip = require("jszip");
+const { DOMParser } = require("@xmldom/xmldom");
 const {
   loadTemplateBuffer,
   buildTemplateData,
@@ -16,6 +17,115 @@ function buildParagraphs(prefix, count) {
     const number = index + 1;
     return `${prefix} paragraph ${number}.`;
   }).join("\n\n");
+}
+
+function collectHeadingStyleIds(stylesDoc) {
+  const styles = Array.from(stylesDoc.getElementsByTagName("w:style"));
+  const ids = new Set();
+
+  styles.forEach((style) => {
+    if ((style.getAttribute("w:type") || "").toLowerCase() !== "paragraph") {
+      return;
+    }
+    const styleId = style.getAttribute("w:styleId");
+    const nameNode = style.getElementsByTagName("w:name")[0];
+    const name = nameNode ? nameNode.getAttribute("w:val") || "" : "";
+    const normalized = name.toLowerCase();
+    if (
+      normalized.includes("heading 1") ||
+      normalized.includes("заголовок 1") ||
+      styleId === "Heading1" ||
+      styleId === "1"
+    ) {
+      ids.add(styleId);
+    }
+  });
+
+  return ids;
+}
+
+function assertHeadingStylesHavePageBreak(stylesDoc, headingStyleIds) {
+  headingStyleIds.forEach((styleId) => {
+    const style = Array.from(stylesDoc.getElementsByTagName("w:style")).find(
+      (node) => node.getAttribute("w:styleId") === styleId,
+    );
+    assert.ok(style, `Heading style ${styleId} is missing`);
+    const paragraphProps = style.getElementsByTagName("w:pPr")[0];
+    assert.ok(
+      paragraphProps &&
+        paragraphProps.getElementsByTagName("w:pageBreakBefore").length > 0,
+      `Heading style ${styleId} must include pageBreakBefore`,
+    );
+  });
+}
+
+function isHeadingParagraph(paragraph, headingStyleIds) {
+  const paragraphProps = paragraph.getElementsByTagName("w:pPr")[0];
+  if (!paragraphProps) {
+    return false;
+  }
+  const styleNode = paragraphProps.getElementsByTagName("w:pStyle")[0];
+  if (!styleNode) {
+    return false;
+  }
+  return headingStyleIds.has(styleNode.getAttribute("w:val"));
+}
+
+function paragraphHasPageBreak(paragraph) {
+  const breaks = Array.from(paragraph.getElementsByTagName("w:br"));
+  return breaks.some((node) => {
+    const type = node.getAttribute("w:type");
+    return !type || type === "page" || type === "section";
+  });
+}
+
+function paragraphHasVisibleText(paragraph) {
+  const texts = Array.from(paragraph.getElementsByTagName("w:t"));
+  return texts.some((node) => (node.textContent || "").trim() !== "");
+}
+
+function isStandalonePageBreakParagraph(paragraph) {
+  if (!paragraphHasPageBreak(paragraph)) {
+    return false;
+  }
+  if (paragraphHasVisibleText(paragraph)) {
+    return false;
+  }
+  const allowed = new Set(["w:pPr", "w:r", "w:rPr", "w:br", "w:lastRenderedPageBreak"]);
+  const allNodes = Array.from(paragraph.getElementsByTagName("*"));
+  return allNodes.every((node) => allowed.has(node.nodeName));
+}
+
+function assertNoStandaloneBreakBeforeHeadings(documentXml, headingStyleIds) {
+  const doc = new DOMParser().parseFromString(documentXml, "application/xml");
+  const body = doc.getElementsByTagName("w:body")[0];
+  if (!body) {
+    return;
+  }
+  const children = Array.from(body.childNodes);
+
+  children.forEach((node, index) => {
+    if (node.nodeType !== 1 || node.nodeName !== "w:p") {
+      return;
+    }
+    if (!isHeadingParagraph(node, headingStyleIds)) {
+      return;
+    }
+    for (let prevIndex = index - 1; prevIndex >= 0; prevIndex -= 1) {
+      const prev = children[prevIndex];
+      if (prev.nodeType !== 1) {
+        continue;
+      }
+      if (prev.nodeName !== "w:p") {
+        break;
+      }
+      assert.ok(
+        !isStandalonePageBreakParagraph(prev),
+        "Standalone page break paragraph found directly before Heading 1",
+      );
+      break;
+    }
+  });
 }
 
 function buildSamplePayload() {
@@ -94,6 +204,8 @@ async function main() {
   const zip = await JSZip.loadAsync(resultBuffer);
   const documentXml = await zip.file("word/document.xml").async("string");
   const settingsXml = await zip.file("word/settings.xml").async("string");
+  const stylesXml = await zip.file("word/styles.xml").async("string");
+  const stylesDoc = new DOMParser().parseFromString(stylesXml, "application/xml");
 
   const textWithoutTags = documentXml.replace(/<[^>]+>/g, "");
   assert.ok(
@@ -112,6 +224,11 @@ async function main() {
     12,
     "Unexpected number of bibliography styles",
   );
+
+  const headingStyleIds = collectHeadingStyleIds(stylesDoc);
+  assert.ok(headingStyleIds.size > 0, "Heading 1 style not found");
+  assertHeadingStylesHavePageBreak(stylesDoc, headingStyleIds);
+  assertNoStandaloneBreakBeforeHeadings(documentXml, headingStyleIds);
 }
 
 main().catch((error) => {
