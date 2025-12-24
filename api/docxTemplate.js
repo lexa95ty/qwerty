@@ -74,6 +74,44 @@ function normalizeSingleLine(value) {
     .trim();
 }
 
+function stripWrappingQuotesAndCommas(text) {
+  if (text == null) {
+    return "";
+  }
+
+  return String(text)
+    .trim()
+    .replace(/^["'`]+/, "")
+    .replace(/["'`,]+$/, "")
+    .trim();
+}
+
+function removeLeadingNumbering(text) {
+  return String(text ?? "").replace(/^\s*\d+\.\s*/, "").trim();
+}
+
+function cleanBibliographyEntry(text) {
+  const normalized = normalizeSingleLine(text);
+  let cleaned = stripWrappingQuotesAndCommas(normalized);
+  cleaned = removeLeadingNumbering(cleaned);
+  cleaned = stripWrappingQuotesAndCommas(cleaned);
+  return cleaned.trim();
+}
+
+function sanitizeBibliographyEntries(list) {
+  if (!Array.isArray(list)) return [];
+
+  return list
+    .map(cleanBibliographyEntry)
+    .filter(Boolean)
+    .filter(
+      (entry) =>
+        !/(^|[^a-z])(meta|total|books|websites|items)\b/i.test(entry) &&
+        !/^\s*[{}\[\]]\s*$/.test(entry) &&
+        !/".+"\s*:\s*/.test(entry),
+    );
+}
+
 function stripMarkdownArtifacts(text) {
   if (!text) {
     return "";
@@ -1016,12 +1054,8 @@ function buildTemplateData(payload) {
     }
   }
 
-  const bibliography = Array.isArray(data.bibliography)
-    ? data.bibliography
-    : [];
-  const sources = bibliography
-    .map((entry) => normalizeSingleLine(entry))
-    .filter(Boolean);
+  const bibliography = sanitizeBibliographyEntries(data.bibliography);
+  const sources = bibliography.filter(Boolean);
 
   templateData.__sources = sources.slice(0, 20);
 

@@ -38,6 +38,65 @@
     if (el && el.style) el.style[key] = value;
   }
 
+  function stripWrappingQuotesAndCommas(text) {
+    if (text == null) return "";
+    return String(text)
+      .trim()
+      .replace(/^["'`]+/, "")
+      .replace(/["'`,]+$/, "")
+      .trim();
+  }
+
+  function removeLeadingNumbering(text) {
+    return String(text ?? "").replace(/^\s*\d+\.\s*/, "").trim();
+  }
+
+  function cleanBibliographyEntry(text) {
+    let cleaned = stripWrappingQuotesAndCommas(text);
+    cleaned = removeLeadingNumbering(cleaned);
+    cleaned = stripWrappingQuotesAndCommas(cleaned);
+    return cleaned.trim();
+  }
+
+  function parseBibliographyResponse(rawText) {
+    if (rawText == null) return [];
+
+    let text = String(rawText).trim();
+    text = text.replace(/```(?:json)?/gi, "").replace(/```/g, "");
+
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    const candidate = start >= 0 && end > start ? text.slice(start, end + 1) : text;
+
+    let obj = null;
+    try {
+      obj = JSON.parse(candidate);
+    } catch (_) {
+      obj = null;
+    }
+
+    if (obj && Array.isArray(obj.items)) {
+      return obj.items.map(cleanBibliographyEntry).filter(Boolean);
+    }
+
+    const lines = candidate
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .filter((line) => {
+        if (/^```/.test(line)) return false;
+        if (/^\s*[{}\[\],]+\s*$/.test(line)) return false;
+        if (/(^|[^a-z])(meta|total|books|websites|items)\b/i.test(line)) return false;
+        if (/"[^"]+"\s*:\s*/.test(line)) return false;
+        return true;
+      })
+      .map(cleanBibliographyEntry)
+      .filter(Boolean)
+      .filter((line) => /[А-Яа-яЁё]/.test(line) || /(https?:\/\/|URL:)/i.test(line));
+
+    return lines;
+  }
+
   function initState() {
     state = {
       topic: "",
@@ -594,15 +653,8 @@
     if (stage.type === "bibliography") {
       const vars = buildVars();
       const resp = await callAI(stagePromptId, vars);
-      let j = null;
-      try {
-        j = JSON.parse(resp.text);
-      } catch (_) {
-        j = PC.extractJsonObject(resp.text);
-      }
-      const items = j?.items;
-      if (Array.isArray(items)) state.bibliography = items.map((x) => String(x));
-      else state.bibliography = (resp.text || "").split("\n").map((s) => s.trim()).filter(Boolean).slice(0, 12);
+      const parsedSources = parseBibliographyResponse(resp.text);
+      state.bibliography = parsedSources.slice(0, 20);
 
       previewAdd("Источники", state.bibliography.map((x, i) => `${i + 1}. ${x}`).join("\n"));
       await updateSummaryAfterStageIfEnabled(stage.type, dpi.summary);
