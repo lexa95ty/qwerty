@@ -174,6 +174,164 @@ function stripDuplicateLeadingHeading(text, expectedTitle) {
   return lines.join("\n").trim();
 }
 
+function findHeading1StyleIds(stylesDoc) {
+  const styles = Array.from(stylesDoc.getElementsByTagName("w:style"));
+  const ids = new Set();
+
+  styles.forEach((style) => {
+    if ((style.getAttribute("w:type") || "").toLowerCase() !== "paragraph") {
+      return;
+    }
+    const styleId = style.getAttribute("w:styleId");
+    const nameNode = style.getElementsByTagName("w:name")[0];
+    const name = nameNode ? nameNode.getAttribute("w:val") || "" : "";
+    const normalizedName = name.toLowerCase();
+    const looksLikeHeading1 =
+      normalizedName.includes("heading 1") || normalizedName.includes("заголовок 1");
+    if (looksLikeHeading1 || styleId === "Heading1" || styleId === "1") {
+      ids.add(styleId);
+    }
+  });
+
+  if (ids.size === 0) {
+    const fallbackIds = ["Heading1", "1", "heading 1", "Заголовок 1"];
+    fallbackIds.forEach((id) => {
+      const match = styles.find((style) => style.getAttribute("w:styleId") === id);
+      if (match) {
+        ids.add(id);
+      }
+    });
+  }
+
+  return ids;
+}
+
+function ensureHeading1PageBreak(stylesDoc, headingStyleIds) {
+  let changed = false;
+  const styles = Array.from(stylesDoc.getElementsByTagName("w:style"));
+  headingStyleIds.forEach((styleId) => {
+    const style = styles.find((node) => node.getAttribute("w:styleId") === styleId);
+    if (!style) {
+      return;
+    }
+
+    let paragraphProps = style.getElementsByTagName("w:pPr")[0];
+    if (!paragraphProps) {
+      paragraphProps = stylesDoc.createElement("w:pPr");
+      style.appendChild(paragraphProps);
+      changed = true;
+    }
+
+    const pageBreakBefore = paragraphProps.getElementsByTagName("w:pageBreakBefore")[0];
+    if (!pageBreakBefore) {
+      const node = stylesDoc.createElement("w:pageBreakBefore");
+      paragraphProps.insertBefore(node, paragraphProps.firstChild);
+      changed = true;
+    } else if (
+      pageBreakBefore.getAttribute("w:val") &&
+      pageBreakBefore.getAttribute("w:val") !== "true" &&
+      pageBreakBefore.getAttribute("w:val") !== "1" &&
+      pageBreakBefore.getAttribute("w:val") !== "on"
+    ) {
+      pageBreakBefore.setAttribute("w:val", "true");
+      changed = true;
+    }
+
+    const keepNext = paragraphProps.getElementsByTagName("w:keepNext")[0];
+    if (!keepNext) {
+      const node = stylesDoc.createElement("w:keepNext");
+      node.setAttribute("w:val", "true");
+      paragraphProps.appendChild(node);
+      changed = true;
+    }
+  });
+
+  return { changed, headingStyleIds };
+}
+
+function isHeadingParagraph(paragraph, headingStyleIds) {
+  const paragraphProps = paragraph.getElementsByTagName("w:pPr")[0];
+  if (!paragraphProps) {
+    return false;
+  }
+  const styleNode = paragraphProps.getElementsByTagName("w:pStyle")[0];
+  if (!styleNode) {
+    return false;
+  }
+  const styleVal = styleNode.getAttribute("w:val");
+  return headingStyleIds.has(styleVal);
+}
+
+function paragraphHasText(paragraph) {
+  const textNodes = Array.from(paragraph.getElementsByTagName("w:t"));
+  return textNodes.some((node) => (node.textContent || "").trim() !== "");
+}
+
+function paragraphHasPageBreak(paragraph) {
+  const breakNodes = Array.from(paragraph.getElementsByTagName("w:br"));
+  return breakNodes.some((node) => {
+    const type = node.getAttribute("w:type");
+    return !type || type === "page" || type === "section";
+  });
+}
+
+function isStandalonePageBreakParagraph(paragraph) {
+  if (!paragraphHasPageBreak(paragraph)) {
+    return false;
+  }
+
+  if (paragraphHasText(paragraph)) {
+    return false;
+  }
+
+  const allowed = new Set(["w:pPr", "w:r", "w:rPr", "w:br", "w:lastRenderedPageBreak"]);
+  const allNodes = Array.from(paragraph.getElementsByTagName("*"));
+  return allNodes.every((node) => allowed.has(node.nodeName));
+}
+
+function removeStandaloneBreaksBeforeHeadings(doc, headingStyleIds) {
+  if (!headingStyleIds || headingStyleIds.size === 0) {
+    return;
+  }
+  const body = doc.getElementsByTagName("w:body")[0];
+  if (!body) {
+    return;
+  }
+
+  for (let index = 0; index < body.childNodes.length; index += 1) {
+    const node = body.childNodes[index];
+    if (node.nodeType !== 1 || node.nodeName !== "w:p") {
+      continue;
+    }
+    if (!isHeadingParagraph(node, headingStyleIds)) {
+      continue;
+    }
+
+    let prevIndex = index - 1;
+    while (prevIndex >= 0) {
+      const prev = body.childNodes[prevIndex];
+      if (prev.nodeType !== 1) {
+        prevIndex -= 1;
+        continue;
+      }
+
+      if (prev.nodeName === "w:sectPr") {
+        break;
+      }
+
+      if (prev.nodeName !== "w:p") {
+        break;
+      }
+
+      if (isStandalonePageBreakParagraph(prev)) {
+        body.removeChild(prev);
+        index -= 1;
+      }
+      break;
+    }
+  }
+}
+
 function getParagraphText(paragraph) {
   const textNodes = Array.from(paragraph.getElementsByTagName("w:t"));
   return textNodes.map((node) => node.textContent || "").join("");
@@ -637,8 +795,28 @@ function markTocFieldsDirty(doc) {
 async function renderDocxFromTemplate(templateBuffer, templateData) {
   const zip = await openZipFromBuffer(templateBuffer);
   await updateSettingsXml(zip);
-  const documentXml = await readZipText(zip, "word/document.xml");
   const parser = new DOMParser();
+  const serializer = new XMLSerializer();
+
+  let headingStyleIds = new Set();
+  try {
+    const stylesXml = await readZipText(zip, "word/styles.xml");
+    const stylesDoc = parser.parseFromString(stylesXml, "application/xml");
+    headingStyleIds = findHeading1StyleIds(stylesDoc);
+    const { changed, headingStyleIds: resolved } = ensureHeading1PageBreak(
+      stylesDoc,
+      headingStyleIds,
+    );
+    headingStyleIds = resolved;
+    if (changed) {
+      const updatedStylesXml = serializer.serializeToString(stylesDoc);
+      await writeZipText(zip, "word/styles.xml", updatedStylesXml);
+    }
+  } catch (err) {
+    console.warn("Failed to enforce heading 1 style page breaks", err);
+  }
+
+  const documentXml = await readZipText(zip, "word/document.xml");
   const doc = parser.parseFromString(documentXml, "application/xml");
   renderSources(doc, templateData?.__sources || []);
   markTocFieldsDirty(doc);
@@ -711,7 +889,8 @@ async function renderDocxFromTemplate(templateBuffer, templateData) {
 
   enforceTableStyle(doc);
 
-  const serializer = new XMLSerializer();
+  removeStandaloneBreaksBeforeHeadings(doc, headingStyleIds);
+
   const updatedXml = serializer.serializeToString(doc);
   await writeZipText(zip, "word/document.xml", updatedXml);
 
